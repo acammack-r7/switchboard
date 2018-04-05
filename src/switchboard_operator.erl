@@ -218,18 +218,19 @@ get_fetch_uid([_ | Rest]) ->
 -spec current_uid(binary(), imap:mailbox()) ->
     {ok, integer()}.
 current_uid(Account, Mailbox) ->
-    {Active, _} = gproc:await(switchboard:key_for(Account, active), 5000),
-    {ok, _} = imap:call(Active, {select, Mailbox}),
-    case imap:call(Active, {uid, {fetch, '*', <<"UID">>}}) of
-      {ok, {_, Resps}} ->
-        BinUid = get_fetch_uid(Resps),
-        {ok, if is_integer(BinUid) -> BinUid;
-                is_binary(BinUid)  -> binary_to_integer(BinUid)
-             end};
-      _ ->
-      {ok, {_, Resps}} = imap:call(Active, {examine, Mailbox}),
-      {ok, proplists:get_value(uidnext, imap:clean(Resps)) - 1}
-    end.
+    switchboard:with_imap(Account, fun(Active) ->
+      {ok, _} = imap:call(Active, {select, Mailbox}),
+      case imap:call(Active, {uid, {fetch, '*', <<"UID">>}}) of
+        {ok, {_, Resps}} ->
+          BinUid = get_fetch_uid(Resps),
+          {ok, if is_integer(BinUid) -> BinUid;
+                  is_binary(BinUid)  -> binary_to_integer(BinUid)
+               end};
+        _ ->
+          {ok, {_, Resps}} = imap:call(Active, {examine, Mailbox}),
+          {ok, proplists:get_value(uidnext, imap:clean(Resps)) - 1}
+      end
+    end).
 
 
 pubsub_key(Account, Mailbox) ->
