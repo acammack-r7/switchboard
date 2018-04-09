@@ -195,8 +195,11 @@ update_uid_internal(#state{account=Account,
                            mailbox=Mailbox,
                            last_uid=LastUid} = State,
                     Uid) when Uid > LastUid ->
-    {ok, {_, Emails}} = imap:call(switchboard:where(Account, active),
-                                  {uid, {fetch, {LastUid + 1, Uid}, <<"ALL">>}}),
+    {ok, {_, Emails}} = switchboard:with_imap(Account,
+                            fun(IMAP) ->
+                                {ok, _} = imap:call(IMAP, {select, Mailbox}),
+                                imap:call(IMAP, {uid, {fetch, {LastUid + 1, Uid}, <<"ALL">>}})
+                            end),
     lists:foreach(
       fun({fetch, Data}) ->
               switchboard:publish(new, {new, {Account, Mailbox}, Data})
@@ -219,17 +222,17 @@ get_fetch_uid([_ | Rest]) ->
     {ok, integer()}.
 current_uid(Account, Mailbox) ->
     switchboard:with_imap(Account, fun(Active) ->
-      {ok, _} = imap:call(Active, {select, Mailbox}),
-      case imap:call(Active, {uid, {fetch, '*', <<"UID">>}}) of
-        {ok, {_, Resps}} ->
-          BinUid = get_fetch_uid(Resps),
-          {ok, if is_integer(BinUid) -> BinUid;
-                  is_binary(BinUid)  -> binary_to_integer(BinUid)
-               end};
+        {ok, _} = imap:call(Active, {select, Mailbox}),
+        case imap:call(Active, {uid, {fetch, '*', <<"UID">>}}) of
+            {ok, {_, Resps}} ->
+            BinUid = get_fetch_uid(Resps),
+            {ok, if is_integer(BinUid) -> BinUid;
+                    is_binary(BinUid)  -> binary_to_integer(BinUid)
+                 end};
         _ ->
-          {ok, {_, Resps}} = imap:call(Active, {examine, Mailbox}),
-          {ok, proplists:get_value(uidnext, imap:clean(Resps)) - 1}
-      end
+            {ok, {_, Resps}} = imap:call(Active, {examine, Mailbox}),
+            {ok, proplists:get_value(uidnext, imap:clean(Resps)) - 1}
+        end
     end).
 
 

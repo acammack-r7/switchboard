@@ -206,6 +206,9 @@ start(ConnSpec, Opts) ->
 %% @equiv start_link(ConnSpec, [])
 -spec start_link(connspec()) ->
     {ok, pid()} | _.
+%% Allow starting with Poolboy.
+start_link([ConnSpec, Opts]) when is_tuple(ConnSpec), is_list(Opts) ->
+    start_link(ConnSpec, Opts);
 start_link(ConnSpec) ->
     start_link(ConnSpec, []).
 
@@ -350,6 +353,8 @@ clean({'*', [Exists, <<"EXISTS">>]}) ->
     {exists, Exists};
 clean({'*', [Recent, <<"RECENT">>]}) ->
     {recent, Recent};
+clean({'*', [<<"OK">>, '[', <<"UNSEEN">>, Unseen, ']' | _]}) ->
+    {unseen, Unseen};    
 clean({'*', [<<"OK">>, '[', <<"PERMANENTFLAGS">>, PermanentFlags, ']' | _]}) ->
     {permanent_flags, PermanentFlags};
 clean({'*', [<<"OK">>, '[', <<"UIDVALIDITY">>, UIDValidity, ']' | _]}) ->
@@ -813,6 +818,8 @@ clean_props([<<"BODY">>, '[', ']', {string, Body} | Rest], Acc) ->
     clean_props(Rest, [{body, Body} | Acc]);
 clean_props([<<"BODY">>, '[', <<"TEXT">>, ']', {string, Body} | Rest], Acc) ->
     clean_props(Rest, [{textbody, Body} | Acc]);
+clean_props([<<"BODY">>, '[', Part, ']', {string, Body} | Rest], Acc) ->
+    clean_props(Rest, [{<<"body.", (integer_to_binary(Part))/binary>>, Body} | Acc]);
 clean_props([<<"BODY">>, Body | Rest], Acc) ->
     clean_props(Rest, [{body, clean_body(Body)} | Acc]).
 
@@ -870,7 +877,7 @@ clean_addresses(nil) ->
 clean_addresses({string, <<"">>}) ->
     [];
 clean_addresses({string, Address}) ->
-    [address, {email, strip_address(Address)}];
+    [{address, [{email, strip_address(Address)}]}];
 clean_addresses(Addresses) ->
     clean_addresses(Addresses, []).
 
