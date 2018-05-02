@@ -949,6 +949,8 @@ tokenize(Data) ->
 
 -spec tokenize(binary(), tokenize_state()) ->
     {[token()], binary(), tokenize_state()}.
+tokenize(Data, {atom, AtomAcc}) ->
+    tokenize(Data, [], pop_token(<<AtomAcc/binary, Data/binary>>));
 tokenize(Data, TokenizeState) ->
     tokenize(Data, [], pop_token(Data, TokenizeState)).
 
