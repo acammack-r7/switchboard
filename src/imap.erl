@@ -799,6 +799,14 @@ clean_props([<<"INTERNALDATE">>, {string, InternalDate} | Rest], Acc) ->
 clean_props([<<"RFC822.SIZE">>, Rfc822Size | Rest], Acc) ->
     clean_props(Rest, [{rfc822size, Rfc822Size} | Acc]);
 clean_props([<<"ENVELOPE">>,
+             [{string, Date}, nil,
+              From, Sender, ReplyTo, To, Cc, Bcc, InReplyTo,
+              {string, MessageId}] | Rest], Acc) ->
+    clean_props([<<"ENVELOPE">>,
+                 [{string, Date}, {string, <<"">>},
+                  From, Sender, ReplyTo, To, Cc, Bcc, InReplyTo,
+                  {string, MessageId}] | Rest], Acc));
+clean_props([<<"ENVELOPE">>,
              [{string, Date}, {string, Subject},
               From, Sender, ReplyTo, To, Cc, Bcc, InReplyTo,
               {string, MessageId}] | Rest], Acc) ->
